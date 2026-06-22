@@ -49,6 +49,13 @@ class SimilarityService:
         self.model_name = model_name
         self.url_resolver = url_resolver
 
+        if self.model_name == "baseline":
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+            self.model.fc = torch.nn.Identity()  # Reemplazamos la última capa lineal de clasificación (.fc) por Identity
+            self.model.to(self.device) 
+            self.model.eval()
+
     def _load_image(self, source_path: str) -> np.ndarray:
         image = cv2.imread(str(source_path))
         if image is None:
@@ -83,17 +90,13 @@ class SimilarityService:
 
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)                # Convertimos de BGR a RGB 
         tensor_image = transform_etapa1(image_rgb)                        # Aplicamos las transformaciones
-        tensor_image = tensor_image.unsqueeze(0)                          # agrega una dimensión extra de tamaño 1 en la posición 0
-        model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)  # Cargamos el modelo ResNet-50
-        model.fc = torch.nn.Identity()                                    # Reemplazamos la última capa lineal de clasificación (.fc) por Identity
-        
-        model.eval()
+        tensor_image = tensor_image.unsqueeze(0).to(self.device)          # agrega una dimensión extra de tamaño 1 en la posición 0
 
-        # Extracción de la lista de Floats
+        # Extracción sin instanciar el modelo cada vez
         with torch.no_grad():
-            output = model(tensor_image)                                  # Pasamos el tensor por la red neuronal
-            embedding_np = output.squeeze().cpu().numpy()                 # Del tensor se elimina las dimensiones extra de tamaño 1 y lo convierte a un array
-            embedding_list = embedding_np.tolist()                        # Convertimos el array a una lista de Python
+            output = self.model(tensor_image)
+            embedding_np = output.squeeze().cpu().numpy()
+            embedding_list = embedding_np.tolist()
 
         return embedding_list
 
@@ -108,27 +111,25 @@ class SimilarityService:
         Retorna una lista de Neighbor (path, breed, score) ordenada por score
         descendente.
         """
-        raw_results = []
+        # Si la base soporta búsqueda nativa (pgvector), usamos su método optimizado
+        if hasattr(self.store, "search"): # O evaluar cómo se expone el store
+            try:
+                return self.store.search(embedding, top_k)
+            except NotImplementedError:
+                pass
 
+        # Fallback para el JSON plano: iteramos sobre todos los registros y calculamos similitud manualmente
+        raw_results = []
         for record in self.store.all():
-            stored_path = record.path
-            stored_breed = record.breed
-            stored_embedding = record.embedding
-            
-            # Usamos la función interna de similitud de la clase
-            score = self.similarity(embedding, stored_embedding)
-            
-            # Instanciamos objetos Neighbor nativos
+            score = self.similarity(embedding, record.embedding)
             neighbor_record = Neighbor(
-                path=str(stored_path),
-                breed=str(stored_breed),
+                path=str(record.path),
+                breed=str(record.breed),
                 score=float(score)
             )
             raw_results.append(neighbor_record)
             
-        # Ordenamos de forma descendente usando la notación de objeto (x.score)
         raw_results.sort(key=lambda x: x.score, reverse=True)
-        
         return raw_results[:top_k]
 
     def predict_breed_from_neighbors(self, results: list[Neighbor]) -> tuple[str, float]:

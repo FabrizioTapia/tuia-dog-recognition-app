@@ -10,6 +10,7 @@ import numpy as np
 
 from lib.schemas import ClassifyResult, DetectResult, DogDetection
 from lib.services.classifier_service import ClassifierService
+from ultralytics import YOLO
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class DetectionService:
         self.yolo_model_name = yolo_model
         self.conf_threshold = conf_threshold
         self.dog_class_id = dog_class_id
+        self.model = YOLO(self.yolo_model_name)
 
     @staticmethod
     def _clip_xyxy(
@@ -75,7 +77,24 @@ class DetectionService:
 
         Retorna una lista de ((x1, y1, x2, y2), confidence) en pixeles.
         """
-        raise NotImplementedError("Etapa 3: implementar detect_dogs")
+        results = self.model(image, conf=self.conf_threshold, verbose=False)
+        detecciones_perros = []
+        
+        if results and len(results) > 0:
+            for box in results[0].boxes:
+                class_id = int(box.cls[0].item())
+                
+                if class_id == self.dog_class_id: 
+                    coords = box.xyxy[0].tolist()
+                    x1 = int(round(coords[0]))
+                    y1 = int(round(coords[1]))
+                    x2 = int(round(coords[2]))
+                    y2 = int(round(coords[3]))
+                    
+                    confidence = float(box.conf[0].item())
+                    detecciones_perros.append(((x1, y1, x2, y2), confidence))
+                    
+        return detecciones_perros
 
     def classify_detected_dog(self, crop: np.ndarray) -> tuple[str, float]:
         """

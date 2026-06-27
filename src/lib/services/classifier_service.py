@@ -124,7 +124,7 @@ class ClassifierService:
         # CONFIG
         # =========================
         BATCH_SIZE = 32
-        EPOCHS = 10
+        EPOCHS = 25
         LEARNING_RATE = 1e-4
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -143,12 +143,12 @@ class ClassifierService:
 
         transform_aug = transforms.Compose([
             transforms.Resize((224, 224)),
-            transforms.RandomHorizontalFlip(p=1.0),
-            transforms.RandomRotation(degrees=30),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(degrees=15),
             transforms.GaussianBlur(kernel_size=5),
-            transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2),
             transforms.ToTensor(),
-            transforms.Lambda(lambda x: torch.clamp(x + 0.1 * torch.randn_like(x), 0, 1)),
+            #transforms.Lambda(lambda x: torch.clamp(x + 0.1 * torch.randn_like(x), 0, 1)),
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406],
                 std=[0.229, 0.224, 0.225]
@@ -207,12 +207,12 @@ class ClassifierService:
 
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
-        scheduler = StepLR(optimizer, step_size=3, gamma=0.1)
+        scheduler = StepLR(optimizer, step_size=7, gamma=0.2)
 
         # =========================
-        # EARLY STOPPING (igual idea tuya)
+        # EARLY STOPPING 
         # =========================
-        patience = 3
+        patience = 7
         patience_counter = 0
         best_valid_loss = float('inf')
 

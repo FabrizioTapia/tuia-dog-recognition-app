@@ -70,7 +70,7 @@ class SimilarityService:
     def extract_embedding(self, image: np.ndarray) -> list[float]:
         """
         Genera el embedding de una imagen usando un modelo pre-entrenado en
-        ImageNet (ej: ResNet50, EfficientNet, ConvNeXt) sin la capa de
+        ImageNet (ej: ResNet18, EfficientNet, ConvNeXt) sin la capa de
         clasificacion final.
 
         Sugerencias:

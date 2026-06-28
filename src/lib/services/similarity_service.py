@@ -51,7 +51,7 @@ class SimilarityService:
 
         if self.model_name == "baseline":
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+            self.model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
             self.model.fc = torch.nn.Identity()  # Reemplazamos la última capa lineal de clasificación (.fc) por Identity
             self.model.to(self.device) 
             self.model.eval()

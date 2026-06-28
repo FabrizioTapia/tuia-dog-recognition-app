@@ -87,6 +87,7 @@ class DetectionService:
         detecciones_perros = []
         
         if results and len(results) > 0:
+            print(f"DEBUG YOLO: Encontró {len(results[0].boxes)} objetos en total.")
             for box in results[0].boxes:
                 class_id = int(box.cls[0].item())
                 
@@ -99,7 +100,7 @@ class DetectionService:
                     
                     confidence = float(box.conf[0].item())
                     detecciones_perros.append(((x1, y1, x2, y2), confidence))
-                    
+        print(f"DEBUG FILTRO: La lista final que devuelve la función tiene {len(detecciones_perros)} perro(s).")
         return detecciones_perros
 
     def classify_detected_dog(self, crop: np.ndarray) -> tuple[str, float]:
